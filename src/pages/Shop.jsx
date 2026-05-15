@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Filter, ChevronDown } from 'lucide-react';
 import AnimatedPage from '../components/AnimatedPage';
@@ -14,6 +14,54 @@ const products = [
 ];
 
 const Shop = () => {
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedPrices, setSelectedPrices] = useState([]);
+  const [sortBy, setSortBy] = useState('Sort by: Featured');
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handlePriceChange = (priceRange) => {
+    setSelectedPrices(prev => 
+      prev.includes(priceRange) 
+        ? prev.filter(p => p !== priceRange)
+        : [...prev, priceRange]
+    );
+  };
+
+  const filteredProducts = useMemo(() => {
+    let result = products;
+
+    if (selectedCategories.length > 0) {
+      result = result.filter(p => selectedCategories.includes(p.category));
+    }
+
+    if (selectedPrices.length > 0) {
+      result = result.filter(p => {
+        const priceNum = parseInt(p.price.replace('$', ''));
+        return selectedPrices.some(range => {
+          if (range === 'Under $150') return priceNum < 150;
+          if (range === '$150 - $200') return priceNum >= 150 && priceNum <= 200;
+          if (range === 'Over $200') return priceNum > 200;
+          return false;
+        });
+      });
+    }
+
+    if (sortBy === 'Price: Low to High') {
+      result = [...result].sort((a, b) => parseInt(a.price.replace('$', '')) - parseInt(b.price.replace('$', '')));
+    } else if (sortBy === 'Price: High to Low') {
+      result = [...result].sort((a, b) => parseInt(b.price.replace('$', '')) - parseInt(a.price.replace('$', '')));
+    }
+
+    return result;
+  }, [selectedCategories, selectedPrices, sortBy]);
+
   return (
     <AnimatedPage>
       <div className="shop-page container">
@@ -30,17 +78,30 @@ const Shop = () => {
               
               <div className="filter-section">
                 <h4>Category <ChevronDown size={16} /></h4>
-                <label className="checkbox-label"><input type="checkbox" /> Running</label>
-                <label className="checkbox-label"><input type="checkbox" /> Training</label>
-                <label className="checkbox-label"><input type="checkbox" /> Casual</label>
-                <label className="checkbox-label"><input type="checkbox" /> Basketball</label>
+                {['Running', 'Training', 'Casual', 'Basketball'].map(category => (
+                  <label key={category} className="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => handleCategoryChange(category)} 
+                    /> 
+                    {category}
+                  </label>
+                ))}
               </div>
               
               <div className="filter-section">
                 <h4>Price <ChevronDown size={16} /></h4>
-                <label className="checkbox-label"><input type="checkbox" /> Under $150</label>
-                <label className="checkbox-label"><input type="checkbox" /> $150 - $200</label>
-                <label className="checkbox-label"><input type="checkbox" /> Over $200</label>
+                {['Under $150', '$150 - $200', 'Over $200'].map(price => (
+                  <label key={price} className="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedPrices.includes(price)}
+                      onChange={() => handlePriceChange(price)} 
+                    /> 
+                    {price}
+                  </label>
+                ))}
               </div>
             </div>
           </aside>
@@ -48,8 +109,12 @@ const Shop = () => {
           {/* Product Grid */}
           <main className="shop-content">
             <div className="shop-controls">
-              <span>Showing {products.length} Results</span>
-              <select className="sort-select">
+              <span>Showing {filteredProducts.length} Results</span>
+              <select 
+                className="sort-select" 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+              >
                 <option>Sort by: Featured</option>
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
@@ -58,7 +123,7 @@ const Shop = () => {
             </div>
 
             <div className="product-grid">
-              {products.map((product, index) => (
+              {filteredProducts.map((product, index) => (
                 <motion.div 
                   className="product-card" 
                   key={product.id}
